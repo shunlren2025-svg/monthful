@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f4ee">
+  <title>Monthful — Your month, sorted.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Monthful home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>Monthful</span>
+      </a>
+      <div class="top-actions">
+        <button class="button alert-button" id="alertButton" type="button"><span aria-hidden="true">♢</span> Turn on alerts</button>
+        <button class="button ghost" id="todayButton" type="button">Today</button>
+        <button class="button primary" id="addEventButton" type="button"><span aria-hidden="true">＋</span> Add event</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="calendar-heading" aria-labelledby="monthTitle">
+        <div>
+          <p class="eyebrow">YOUR MONTH, SORTED</p>
+          <h1 id="monthTitle">Month Year</h1>
+          <p id="monthSummary" class="month-summary">Nothing planned yet — enjoy the calm.</p>
+        </div>
+        <div class="calendar-controls">
+          <div class="view-switcher" aria-label="Calendar view">
+            <button type="button" data-view="hour">Hour</button>
+            <button type="button" data-view="day">Day</button>
+            <button type="button" data-view="week">Week</button>
+            <button type="button" data-view="month" class="active">Month</button>
+          </div>
+          <div class="month-nav" aria-label="Move through calendar">
+          <button id="previousMonth" type="button" aria-label="Previous month">←</button>
+          <button id="nextMonth" type="button" aria-label="Next month">→</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="calendar-layout">
+        <section id="calendarCard" class="calendar-card" aria-label="Calendar">
+          <div id="weekdayRow" class="weekday-row" aria-hidden="true">
+            <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span class="weekend">SAT</span><span class="weekend">SUN</span>
+          </div>
+          <div id="calendarGrid" class="calendar-grid"></div>
+        </section>
+
+        <aside class="planner-panel" aria-label="Month dashboard">
+          <section class="side-card hello-card">
+            <span class="scribble" aria-hidden="true">↗</span>
+            <p class="eyebrow">MONTH MOOD</p>
+            <h2>Plan it.<br><em>Crush it.</em></h2>
+            <p>A little planning now means way less panic later.</p>
+            <div class="sticker" aria-hidden="true">YOU<br>GOT<br>THIS!</div>
+          </section>
+
+          <section class="side-card stats-card">
+            <div class="side-title"><span>This month</span><span aria-hidden="true">✦</span></div>
+            <div class="big-stat"><strong id="eventTotal">0</strong><span>plans on deck</span></div>
+            <div class="next-up">
+              <small>NEXT UP</small>
+              <div id="nextEvent">Your schedule is wide open.</div>
+            </div>
+          </section>
+
+          <section class="side-card quick-card">
+            <div class="side-title"><span>Quick drops</span><span aria-hidden="true">＋</span></div>
+            <p>One tap, then pick a time.</p>
+            <div class="quick-buttons">
+              <button type="button" data-quick-title="Homework" data-quick-category="school">📚 Homework</button>
+              <button type="button" data-quick-title="Practice" data-quick-category="activity">⚽ Practice</button>
+              <button type="button" data-quick-title="Hangout" data-quick-category="fun">✨ Hangout</button>
+            </div>
+          </section>
+
+          <section class="side-card mix-card">
+            <div class="side-title"><span>Your mix</span><span aria-hidden="true">●</span></div>
+            <div id="categoryLegend" class="category-legend"></div>
+          </section>
+        </aside>
+      </div>
+
+      <p class="tip"><span aria-hidden="true">✦</span> Tip: click any day to add something fast.</p>
+    </main>
+  </div>
+
+  <dialog id="eventDialog" class="event-dialog">
+    <form id="eventForm" method="dialog">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">QUICK ADD</p>
+          <h2 id="dialogTitle">Add to your month</h2>
+        </div>
+        <button id="closeDialog" class="icon-button" type="button" aria-label="Close">×</button>
+      </div>
+
+      <div class="field">
+        <label for="eventTitle">What’s happening?</label>
+        <input id="eventTitle" name="title" type="text" maxlength="60" placeholder="e.g. Robotics meeting" autocomplete="off" required autofocus>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="eventDate">Date</label>
+          <input id="eventDate" name="date" type="date" required>
+        </div>
+        <div class="field">
+          <label for="eventTime">Time</label>
+          <input id="eventTime" name="time" type="time" required>
+        </div>
+      </div>
+
+      <fieldset class="field category-field">
+        <legend>Category <span>optional</span></legend>
+        <div id="categoryOptions" class="category-options"></div>
+        <button id="showCategoryForm" class="add-category-link" type="button">＋ Create a category</button>
+        <div id="newCategoryForm" class="new-category-form hidden">
+          <input id="newCategoryName" type="text" maxlength="18" placeholder="Homework, Soccer…" aria-label="New category name">
+          <input id="newCategoryColor" type="color" value="#7a5fc0" aria-label="New category color">
+          <button id="saveCategory" class="button" type="button">Add</button>
+        </div>
+      </fieldset>
+
+      <div class="field reminder-field">
+        <label for="eventReminder">Reminder <span>optional</span></label>
+        <select id="eventReminder" name="reminder">
+          <option value="">No reminder</option>
+          <option value="0">At event time</option>
+          <option value="5">5 minutes before</option>
+          <option value="15">15 minutes before</option>
+          <option value="30">30 minutes before</option>
+          <option value="60">1 hour before</option>
+          <option value="1440">1 day before</option>
+        </select>
+        <small>Alerts appear while Monthful is open. Turn on browser alerts for notifications outside this tab.</small>
+      </div>
+
+      <label class="repeat-row">
+        <input id="repeatWeekly" name="repeat" type="checkbox">
+        <span class="switch" aria-hidden="true"></span>
+        <span><strong>Repeat weekly</strong><small>until the end of this month</small></span>
+      </label>
+
+      <div class="dialog-actions">
+        <button id="deleteEvent" class="button danger hidden" type="button">Delete</button>
+        <button id="cancelDialog" class="button ghost" type="button">Cancel</button>
+        <button class="button primary save" type="submit">Save event <span aria-hidden="true">→</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <aside id="reminderBanner" class="reminder-banner hidden" role="alert">
+    <div class="reminder-icon" aria-hidden="true">♢</div>
+    <div><small>REMINDER</small><strong id="reminderText"></strong></div>
+    <button id="dismissReminder" type="button" aria-label="Dismiss reminder">×</button>
+  </aside>
+  <script src="app.js"></script>
+</body>
+</html>
