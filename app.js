@@ -14,6 +14,12 @@ const alertButton = document.querySelector('#alertButton');
 const categoryOptions = document.querySelector('#categoryOptions');
 const newCategoryForm = document.querySelector('#newCategoryForm');
 const reminderBanner = document.querySelector('#reminderBanner');
+const shareDialog = document.querySelector('#shareDialog');
+const shareForm = document.querySelector('#shareForm');
+const shareViewInput = document.querySelector('#shareView');
+const shareCategoryOptions = document.querySelector('#shareCategoryOptions');
+const shareLinkArea = document.querySelector('#shareLinkArea');
+const shareUrlInput = document.querySelector('#shareUrl');
 
 const EVENTS_KEY = 'monthful-events-v2';
 const OLD_EVENTS_KEY = 'monthful-events-v1';
@@ -33,6 +39,8 @@ let selectedDate = new Date();
 let selectedHour = selectedDate.getHours();
 let currentView = 'month';
 let editingId = null;
+let sharedMode = false;
+let shareSettings = { hideNames: false, hideTimes: false, hidePanel: false };
 
 function loadJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -79,7 +87,9 @@ function categoryFor(id) {
 function buildEventChip(event) {
   const category = categoryFor(event.category);
   const reminderMark = event.reminder !== undefined && event.reminder !== '' ? '<span class="reminder-mark" aria-label="Reminder set">♢</span>' : '';
-  return `<span class="event custom" data-event-id="${event.id}" style="--event-color:${category.color}" title="${escapeHtml(formatTime(event.time))} — ${escapeHtml(event.title)}"><span class="event-time">${formatTime(event.time).replace(' ', '')}</span><span>${escapeHtml(event.title)}</span>${reminderMark}</span>`;
+  const showTime = !(sharedMode && shareSettings.hideTimes);
+  const title = showTime ? `${formatTime(event.time)} — ${event.title}` : event.title;
+  return `<span class="event custom" data-event-id="${escapeHtml(event.id)}" style="--event-color:${category.color}" title="${escapeHtml(title)}">${showTime ? `<span class="event-time">${formatTime(event.time).replace(' ', '')}</span>` : ''}<span>${escapeHtml(event.title)}</span>${reminderMark}</span>`;
 }
 
 function eventsOn(key) {
@@ -128,7 +138,7 @@ function renderSidebar() {
   const now = new Date();
   const next = events.filter(event => eventDateTime(event) >= now).sort((a, b) => eventDateTime(a) - eventDateTime(b))[0];
   document.querySelector('#nextEvent').innerHTML = next
-    ? `<span style="color:${categoryFor(next.category).color}">${escapeHtml(next.title)}</span><br><small>${eventDateTime(next).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${formatTime(next.time)}</small>`
+    ? `<span style="color:${categoryFor(next.category).color}">${escapeHtml(next.title)}</span><br><small>${eventDateTime(next).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}${sharedMode && shareSettings.hideTimes ? '' : ` · ${formatTime(next.time)}`}</small>`
     : 'Your schedule is wide open.';
 
   const counts = new Map();
@@ -179,6 +189,10 @@ function renderDay() {
   const key = dateKey(selectedDate);
   const dayEvents = eventsOn(key);
   updateSummary(dayEvents);
+  if (sharedMode && shareSettings.hideTimes) {
+    calendarCard.innerHTML = `<div class="hour-note">Events for this day · times are hidden by the owner.</div><div class="untimed-list">${dayEvents.map(buildEventChip).join('') || '<p>No shared events for this day.</p>'}</div>`;
+    return;
+  }
   let rows = '';
   for (let hour = 0; hour < 24; hour++) {
     const time = `${String(hour).padStart(2, '0')}:00`;
@@ -193,6 +207,12 @@ function renderHour() {
   const key = dateKey(selectedDate);
   const hourEvents = eventsOn(key).filter(event => Number(event.time.slice(0, 2)) === selectedHour);
   updateSummary(hourEvents);
+  if (sharedMode && shareSettings.hideTimes) {
+    const dayEvents = eventsOn(key);
+    updateSummary(dayEvents);
+    calendarCard.innerHTML = `<div class="hour-note">Events for this day · times are hidden by the owner.</div><div class="untimed-list">${dayEvents.map(buildEventChip).join('') || '<p>No shared events for this day.</p>'}</div>`;
+    return;
+  }
   let rows = '';
   for (let quarter = 0; quarter < 4; quarter++) {
     const minute = quarter * 15;
@@ -246,6 +266,7 @@ function showToast(message) {
 }
 
 calendarCard.addEventListener('click', event => {
+  if (sharedMode) return;
   const eventChip = event.target.closest('[data-event-id]');
   if (eventChip) {
     event.stopPropagation();
@@ -305,6 +326,127 @@ document.querySelectorAll('[data-quick-title]').forEach(button => button.addEven
   if (category) category.checked = true;
 }));
 
+function renderShareCategories() {
+  shareCategoryOptions.innerHTML = categories.map(category => `<label><input class="share-category" type="checkbox" value="${escapeHtml(category.id)}" checked><span><i class="dot" style="background:${category.color}"></i>${escapeHtml(category.name)}</span></label>`).join('');
+}
+
+function scopedEventsFor(view) {
+  const target = dateKey(selectedDate);
+  if (view === 'month') return events.filter(event => {
+    const date = parseLocalDate(event.date);
+    return date.getFullYear() === selectedDate.getFullYear() && date.getMonth() === selectedDate.getMonth();
+  });
+  if (view === 'week') {
+    const start = startOfWeek(selectedDate);
+    const end = new Date(start); end.setDate(start.getDate() + 6);
+    return events.filter(event => event.date >= dateKey(start) && event.date <= dateKey(end));
+  }
+  if (view === 'hour') return events.filter(event => event.date === target && Number(event.time.slice(0, 2)) === selectedHour);
+  return events.filter(event => event.date === target);
+}
+
+function encodeSharePayload(payload) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = '';
+  bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
+
+function decodeSharePayload(value) {
+  try {
+    const base64 = value.replaceAll('-', '+').replaceAll('_', '/');
+    const padded = base64 + '='.repeat((4 - base64.length % 4) % 4);
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch { return null; }
+}
+
+function openShareDialog() {
+  shareForm.reset();
+  shareViewInput.value = currentView;
+  renderShareCategories();
+  shareLinkArea.classList.add('hidden');
+  shareUrlInput.value = '';
+  shareDialog.showModal();
+}
+
+function closeShareDialog() { shareDialog.close(); }
+
+shareForm.addEventListener('submit', event => {
+  event.preventDefault();
+  const includedIds = [...shareCategoryOptions.querySelectorAll('.share-category:checked')].map(input => input.value);
+  if (!includedIds.length) { showToast('Choose at least one category'); return; }
+  const view = shareViewInput.value;
+  const hideNames = document.querySelector('#hideEventNames').checked;
+  const hideTimes = document.querySelector('#hideEventTimes').checked;
+  const hidePanel = document.querySelector('#hideDashboard').checked;
+  const sharedEvents = scopedEventsFor(view).filter(event => includedIds.includes(event.category)).map((event, index) => ({
+    id: `shared-${index}`,
+    title: hideNames ? 'Busy' : event.title,
+    date: event.date,
+    time: hideTimes ? '12:00' : event.time,
+    category: event.category,
+    reminder: ''
+  }));
+  const sharedCategories = categories.filter(category => includedIds.includes(category.id));
+  const payload = { v: 1, view, date: dateKey(selectedDate), hour: hideTimes ? 12 : selectedHour, settings: { hideNames, hideTimes, hidePanel }, categories: sharedCategories, events: sharedEvents };
+  const baseUrl = window.location.href.split('#')[0];
+  shareUrlInput.value = `${baseUrl}#share=${encodeSharePayload(payload)}`;
+  shareLinkArea.classList.remove('hidden');
+  shareUrlInput.select();
+});
+
+document.querySelector('#shareButton').addEventListener('click', openShareDialog);
+document.querySelector('#closeShareDialog').addEventListener('click', closeShareDialog);
+document.querySelector('#cancelShareDialog').addEventListener('click', closeShareDialog);
+shareDialog.addEventListener('click', event => { if (event.target === shareDialog) closeShareDialog(); });
+document.querySelector('#copyShareLink').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(shareUrlInput.value);
+    showToast('Share link copied');
+  } catch {
+    shareUrlInput.select();
+    document.execCommand('copy');
+    showToast('Share link copied');
+  }
+});
+
+function applySharedViewFromUrl() {
+  if (!window.location.hash.startsWith('#share=')) return;
+  const payload = decodeSharePayload(window.location.hash.slice(7));
+  if (!payload || payload.v !== 1 || !Array.isArray(payload.events) || !Array.isArray(payload.categories)) return;
+  const safeCategories = payload.categories.slice(0, 30).map((category, index) => ({
+    id: String(category.id || `category-${index}`).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || `category-${index}`,
+    name: String(category.name || 'Category').slice(0, 24),
+    color: /^#[0-9a-fA-F]{6}$/.test(category.color) ? category.color : '#7569e8'
+  }));
+  if (!safeCategories.length) safeCategories.push(defaultCategories[0]);
+  const categoryIds = safeCategories.map(category => category.id);
+  const safeEvents = payload.events.slice(0, 300).filter(event => /^\d{4}-\d{2}-\d{2}$/.test(event.date) && /^\d{2}:\d{2}$/.test(event.time)).map((event, index) => ({
+    id: `shared-${index}`,
+    title: String(event.title || 'Busy').slice(0, 60),
+    date: event.date,
+    time: event.time,
+    category: categoryIds.includes(event.category) ? event.category : categoryIds[0],
+    reminder: ''
+  }));
+  const safeDate = /^\d{4}-\d{2}-\d{2}$/.test(payload.date) ? parseLocalDate(payload.date) : new Date();
+  const safeViews = ['month', 'week', 'day', 'hour'];
+  sharedMode = true;
+  events = safeEvents;
+  categories = safeCategories;
+  selectedDate = safeDate;
+  selectedHour = Number.isInteger(payload.hour) && payload.hour >= 0 && payload.hour <= 23 ? payload.hour : 12;
+  currentView = safeViews.includes(payload.view) ? payload.view : 'month';
+  shareSettings = { hideNames: Boolean(payload.settings?.hideNames), hideTimes: Boolean(payload.settings?.hideTimes), hidePanel: Boolean(payload.settings?.hidePanel) };
+  document.body.classList.add('shared-mode');
+  document.body.classList.toggle('hide-shared-panel', shareSettings.hidePanel);
+  document.querySelector('#sharedViewBanner').classList.remove('hidden');
+  const hidden = [shareSettings.hideNames && 'names hidden', shareSettings.hideTimes && 'times hidden', shareSettings.hidePanel && 'dashboard hidden'].filter(Boolean);
+  document.querySelector('#sharedViewDetails').textContent = `View-only calendar snapshot${hidden.length ? ` · ${hidden.join(' · ')}` : ''}`;
+}
+
 document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => { currentView = button.dataset.view; renderCalendar(); }));
 document.querySelector('#previousMonth').addEventListener('click', () => navigate(-1));
 document.querySelector('#nextMonth').addEventListener('click', () => navigate(1));
@@ -349,6 +491,7 @@ alertButton.addEventListener('click', async () => {
 });
 
 function checkReminders() {
+  if (sharedMode) return;
   const now = new Date();
   const candidates = events.filter(event => event.reminder !== undefined && event.reminder !== '').sort((a, b) => eventDateTime(a) - eventDateTime(b));
   for (const event of candidates) {
@@ -370,6 +513,7 @@ function checkReminders() {
 
 document.querySelector('#dismissReminder').addEventListener('click', () => reminderBanner.classList.add('hidden'));
 
+applySharedViewFromUrl();
 renderCategories();
 renderCalendar();
 updateAlertButton();

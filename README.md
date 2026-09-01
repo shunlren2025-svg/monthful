@@ -11,6 +11,7 @@ A colorful, student-friendly calendar for planning an entire month without the c
 - Built-in and custom color categories
 - Quick-add buttons for common student activities
 - Live month statistics and upcoming-event summary
+- View-only share links with category and privacy controls
 - Responsive desktop and mobile layout
 - Browser storage—events remain after refreshing
 
@@ -38,3 +39,7 @@ To make the website public with GitHub Pages, open the repository on GitHub and 
 ## Technology
 
 Monthful uses only HTML, CSS, and JavaScript. It has no framework or package dependencies.
+
+## Private sharing
+
+Select **Share** inside Monthful to create a view-only snapshot URL. Before creating it, you can choose the calendar view and categories to include, replace event names with “Busy,” hide event times, or remove the dashboard. Hidden information is excluded from the link. Share links work best after the site is published with GitHub Pages.

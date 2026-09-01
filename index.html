@@ -18,13 +18,18 @@
         <span>Monthful</span>
       </a>
       <div class="top-actions">
-        <button class="button alert-button" id="alertButton" type="button"><span aria-hidden="true">♢</span> Turn on alerts</button>
+        <button class="button alert-button owner-only" id="alertButton" type="button"><span aria-hidden="true">♢</span> Turn on alerts</button>
+        <button class="button share-button owner-only" id="shareButton" type="button"><span aria-hidden="true">↗</span> Share</button>
         <button class="button ghost" id="todayButton" type="button">Today</button>
-        <button class="button primary" id="addEventButton" type="button"><span aria-hidden="true">＋</span> Add event</button>
+        <button class="button primary owner-only" id="addEventButton" type="button"><span aria-hidden="true">＋</span> Add event</button>
       </div>
     </header>
 
     <main>
+      <section id="sharedViewBanner" class="shared-view-banner hidden" aria-label="Shared calendar notice">
+        <span class="shared-lock" aria-hidden="true">◉</span>
+        <div><strong>Shared view</strong><span id="sharedViewDetails">This is a view-only calendar snapshot.</span></div>
+      </section>
       <section class="calendar-heading" aria-labelledby="monthTitle">
         <div>
           <p class="eyebrow">YOUR MONTH, SORTED</p>
@@ -71,7 +76,7 @@
             </div>
           </section>
 
-          <section class="side-card quick-card">
+          <section class="side-card quick-card owner-only">
             <div class="side-title"><span>Quick drops</span><span aria-hidden="true">＋</span></div>
             <p>One tap, then pick a time.</p>
             <div class="quick-buttons">
@@ -153,6 +158,56 @@
         <button id="deleteEvent" class="button danger hidden" type="button">Delete</button>
         <button id="cancelDialog" class="button ghost" type="button">Cancel</button>
         <button class="button primary save" type="submit">Save event <span aria-hidden="true">→</span></button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="shareDialog" class="event-dialog share-dialog">
+    <form id="shareForm">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">CONTROL THE VIEW</p>
+          <h2>Share only what matters</h2>
+        </div>
+        <button id="closeShareDialog" class="icon-button" type="button" aria-label="Close">×</button>
+      </div>
+
+      <div class="share-intro">
+        <span aria-hidden="true">◉</span>
+        <p><strong>Private by default</strong>Your link is view-only and includes only the events you choose below.</p>
+      </div>
+
+      <div class="field">
+        <label for="shareView">View to share</label>
+        <select id="shareView" name="shareView">
+          <option value="month">Month</option>
+          <option value="week">Week</option>
+          <option value="day">Day</option>
+          <option value="hour">Hour</option>
+        </select>
+      </div>
+
+      <fieldset class="field share-categories">
+        <legend>Categories to include</legend>
+        <div id="shareCategoryOptions"></div>
+      </fieldset>
+
+      <fieldset class="field privacy-options">
+        <legend>What should be hidden?</legend>
+        <label><input id="hideEventNames" type="checkbox"><span class="check-box">✓</span><span><strong>Event names</strong><small>People will see “Busy” instead.</small></span></label>
+        <label><input id="hideEventTimes" type="checkbox"><span class="check-box">✓</span><span><strong>Event times</strong><small>Only the event date will be shared.</small></span></label>
+        <label><input id="hideDashboard" type="checkbox"><span class="check-box">✓</span><span><strong>Dashboard</strong><small>Show only the calendar grid.</small></span></label>
+      </fieldset>
+
+      <div id="shareLinkArea" class="share-link-area hidden">
+        <label for="shareUrl">Your private share link</label>
+        <div><input id="shareUrl" type="text" readonly><button id="copyShareLink" class="button" type="button">Copy</button></div>
+        <small>This is a snapshot. Make a new link after changing your calendar.</small>
+      </div>
+
+      <div class="dialog-actions">
+        <button id="cancelShareDialog" class="button ghost" type="button">Cancel</button>
+        <button class="button primary save" type="submit">Create link <span aria-hidden="true">↗</span></button>
       </div>
     </form>
   </dialog>
